@@ -1,0 +1,75 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  model-init:
+    image: ollama/ollama:latest
+    container_name: model-init
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - MODEL_NAME=${MODEL_NAME:-phi4-mini}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      echo 'Waiting for Ollama...';
+      until ollama list > /dev/null 2>&1; do sleep 2; done;
+      echo 'Pulling chat model:' $$MODEL_NAME;
+      ollama pull $$MODEL_NAME;
+      echo 'Pulling embedding model:' $$EMBEDDING_MODEL;
+      ollama pull $$EMBEDDING_MODEL;
+      echo 'Model pull completed.';
+      "
+
+  rag-api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: phi-rag-api
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - MODEL_NAME=${MODEL_NAME:-phi4-mini}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
+      - MAX_CHUNK_SIZE=1400
+      - CHUNK_OVERLAP=100
+      - PARENT_CHUNK_SIZE=3600
+      - PARENT_CHUNK_OVERLAP=500
+      - PARENT_WINDOW_CHILD_SPAN=2
+      - EMBED_BATCH_SIZE=32
+      - EMBED_LEGACY_WORKERS=8
+      - EMBED_NUM_CTX=512
+      - MAX_EMBED_NUM_CTX=2048
+      - EMBED_CHARS_PER_TOKEN=4
+      - INDEX_MAX_CHUNKS=0
+      - CHROMA_ADD_BATCH_SIZE=256
+      - MAX_CONTEXT_CHARS=3000
+      - DEFAULT_TOP_K=4
+      - RETRIEVAL_MAX_DISTANCE=1.1
+      - MIN_RETRIEVAL_RESULTS=2
+      - CHAT_TEMPERATURE=0.1
+      - CHAT_TOP_P=0.9
+      - CHAT_NUM_PREDICT=128
+      - CHAT_KEEP_ALIVE=30m
+      - CHAT_REQUEST_TIMEOUT_SEC=420
+      - MAX_HISTORY_ITEMS=500
+      - DOC_SNIPPET_CHARS=900
+      - MAX_UPLOAD_MB=100
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app/data:/app/data
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phi RAG Chatbot</title>
+  <style>
+    :root {
+      --sidebar-w: 260px;
+      --accent: #dd6b20;
+      --accent-2: #b45309;
+      --ink: #2e261f;
+      --muted: #7a6550;
+      --border: #f1d7bd;
+      --chat-bg: #fdf6ec;
+      --sidebar-bg: #231508;
+      --sidebar-border: rgba(255,255,255,0.07);
+      --sidebar-text: #f0e0cc;
+      --sidebar-muted: #9a7a5a;
+      --sidebar-hover: rgba(255,255,255,0.06);
+      --sidebar-active-bg: rgba(221,107,32,0.18);
+      --sidebar-active-border: #dd6b20;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+      color: var(--ink);
+      display: flex;
+      background: var(--sidebar-bg);
+    }
+
+    /* ─── SIDEBAR ─────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--sidebar-border);
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 18px 16px 12px;
+      border-bottom: 1px solid var(--sidebar-border);
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--sidebar-text);
+      letter-spacing: 0.2px;
+    }
+
+    .sidebar-tagline {
+      margin-top: 3px;
+      font-size: 0.72rem;
+      color: var(--sidebar-muted);
+    }
+
+    .new-chat-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      width: calc(100% - 24px);
+      margin: 12px 12px 4px;
+      padding: 9px 14px;
+      background: var(--accent);
+      color: #fff;
+      border: 0;
+      border-radius: 10px;
+      font: inherit;
+      font-size: 0.87rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter 120ms;
+      flex-shrink: 0;
+    }
+    .new-chat-btn:hover { filter: brightness(1.12); }
+    .new-chat-btn:disabled { opacity: 0.55; cursor: default; }
+
+    .sessions-heading {
+      padding: 12px 16px 5px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--sidebar-muted);
+      flex-shrink: 0;
+    }
+
+    .sessions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 8px 6px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .sessions-list::-webkit-scrollbar { width: 4px; }
+    .sessions-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+    .session-tab {
+      padding: 9px 10px;
+      border-radius: 8px;
+      margin-bottom: 2px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background 100ms;
+    }
+    .session-tab:hover { background: var(--sidebar-hover); }
+    .session-tab.active {
+      background: var(--sidebar-active-bg);
+      border-left-color: var(--sidebar-active-border);
+    }
+
+    .session-tab-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--sidebar-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .session-tab.active .session-tab-title { color: #ffd0a0; }
+
+    .session-tab-time {
+      margin-top: 2px;
+      font-size: 0.71rem;
+      color: var(--sidebar-muted);
+    }
+
+    .sessions-empty {
+      padding: 18px 10px;
+      font-size: 0.8rem;
+      color: var(--sidebar-muted);
+      text-align: center;
+    }
+
+    /* ─── SIDEBAR UPLOAD PANEL ───────────────────── */
+    .upload-panel {
+      flex-shrink: 0;
+      border-top: 1px solid var(--sidebar-border);
+      padding: 0 12px;
+    }
+
+    .upload-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 2px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--sidebar-muted);
+      user-select: none;
+    }
+    .upload-toggle:hover { color: var(--sidebar-text); }
+
+    .upload-arrow { transition: transform 200ms; font-size: 0.65rem; }
+    .upload-arrow.open { transform: rotate(90deg); }
+
+    .upload-body {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 250ms ease;
+    }
+    .upload-body.open { max-height: 230px; }
+
+    .upload-inner { padding-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+    .upload-file-input {
+      width: 100%;
+      font-size: 0.76rem;
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--sidebar-text);
+      cursor: pointer;
+    }
+    .upload-file-input::file-selector-button {
+      background: rgba(255,255,255,0.1);
+      border: 0;
+      border-radius: 5px;
+      padding: 2px 8px;
+      color: var(--sidebar-text);
+      font-size: 0.73rem;
+      cursor: pointer;
+      margin-right: 6px;
+    }
+
+    .upload-submit-btn {
+      width: 100%;
+      padding: 7px;
+      background: rgba(221,107,32,0.22);
+      color: #ffbf80;
+      border: 1px solid rgba(221,107,32,0.3);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 0.79rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    .upload-submit-btn:hover { background: rgba(221,107,32,0.38); }
+    .upload-submit-btn:disabled { opacity: 0.45; cursor: default; }
+
+    .upload-status {
+      font-size: 0.72rem;
+      color: var(--sidebar-muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 56px;
+      overflow-y: auto;
+    }
+    .upload-status.ok { color: #80c880; }
+    .upload-status.err { color: #e08080; }
+
+    /* ─── SIDEBAR BOTTOM ACTIONS ─────────────────── */
+    .sidebar-footer {
+      flex-shrink: 0;
+      padding: 8px 12px 14px;
+      border-top: 1px solid var(--sidebar-border);
+      display: flex;
+      gap: 6px;
+    }
+
+    .footer-btn {
+      flex: 1;
+      padding: 6px 4px;
+      background: transparent;
+      color: var(--sidebar-muted);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px;
+      font: inherit;
+      font-size: 0.73rem;
+      cursor: pointer;
+      transition: all 120ms;
+    }
+    .footer-btn:hover { background: rgba(255,255,255,0.07); color: var(--sidebar-text); }
+
+    /* ─── MAIN AREA ──────────────────────────────── */
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--chat-bg);
+      animation: fadein 300ms ease;
+    }
+    @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+    .main-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 20px 12px;
+      background: linear-gradient(90deg, #fff3e6, #ffe8cc);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .main-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--ink);
+    }
+
+    .main-meta {
+      font-size: 0.76rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ─── CHAT THREAD ────────────────────────────── */
+    .chat-thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: 22px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scrollbar-width: thin;
+      scrollbar-color: #e8c9aa transparent;
+    }
+    .chat-thread::-webkit-scrollbar { width: 5px; }
+    .chat-thread::-webkit-scrollbar-thumb { background: #e8c9aa; border-radius: 4px; }
+
+    .chat-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--muted);
+      padding: 60px 20px;
+      text-align: center;
+    }
+    .chat-empty-icon { font-size: 2.8rem; opacity: 0.35; }
+    .chat-empty-title { font-size: 1rem; font-weight: 600; color: var(--ink); opacity: 0.5; }
+    .chat-empty-hint { font-size: 0.82rem; opacity: 0.55; }
+
+    .turn { display: flex; flex-direction: column; gap: 8px; }
+
+    .bubble-q {
+      align-self: flex-end;
+      max-width: 68%;
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      color: #fff;
+      padding: 10px 15px;
+      border-radius: 18px 18px 4px 18px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      word-break: break-word;
+      box-shadow: 0 2px 8px rgba(180,83,9,0.18);
+    }
+
+    .bubble-a {
+      align-self: flex-start;
+      max-width: 78%;
+      background: #fff;
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      border-radius: 4px 18px 18px 18px;
+      font-size: 0.92rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .bubble-a.thinking { color: var(--muted); font-style: italic; }
+    .bubble-a.error { color: #b83232; background: #fff5f5; border-color: #f5c0c0; font-style: italic; }
+
+    .bubble-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 0 3px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .source-tag {
+      background: #fff3e6;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 0.71rem;
+      font-weight: 700;
+      color: var(--accent-2);
+    }
+
+    /* ─── INPUT BAR ──────────────────────────────── */
+    .input-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      padding: 12px 20px 16px;
+      background: #fff;
+      border-top: 1px solid var(--border);
+    }
+
+    .input-textarea {
+      flex: 1;
+      min-height: 44px;
+      max-height: 140px;
+      padding: 10px 14px;
+      font: inherit;
+      font-size: 0.91rem;
+      line-height: 1.5;
+      background: #fffdf9;
+      border: 1px solid #e8c9aa;
+      border-radius: 12px;
+      resize: none;
+      overflow-y: auto;
+      outline: none;
+      transition: border-color 120ms;
+    }
+    .input-textarea:focus { border-color: var(--accent); }
+
+    .ask-btn {
+      flex-shrink: 0;
+      height: 44px;
+      padding: 0 22px;
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      color: #fff;
+      border: 0;
+      border-radius: 12px;
+      font: inherit;
+      font-size: 0.91rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms, filter 120ms;
+    }
+    .ask-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    .ask-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+    /* ─── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 680px) {
+      .sidebar { width: 200px; min-width: 200px; }
+      .bubble-q, .bubble-a { max-width: 88%; }
+    }
+    @media (max-width: 480px) {
+      body { flex-direction: column; }
+      .sidebar {
+        width: 100%; height: auto; min-width: 0;
+        border-right: 0; border-bottom: 1px solid var(--sidebar-border);
+        flex-direction: row; flex-wrap: wrap;
+      }
+      .sessions-list { max-height: 90px; }
+      .main { height: 0; flex: 1; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">Phi RAG Chatbot</div>
+      <div class="sidebar-tagline">phi4-mini · mxbai-embed-large</div>
+    </div>
+
+    <button id="newChatBtn" class="new-chat-btn">＋ New Chat</button>
+
+    <div class="sessions-heading">Chats</div>
+    <div class="sessions-list" id="sessionsList">
+      <div class="sessions-empty">No chats yet.</div>
+    </div>
+
+    <!-- Upload panel -->
+    <div class="upload-panel">
+      <div class="upload-toggle" id="uploadToggle">
+        <span>📄 Upload Document</span>
+        <span class="upload-arrow" id="uploadArrow">▸</span>
+      </div>
+      <div class="upload-body" id="uploadBody">
+        <div class="upload-inner">
+          <input id="docFile" type="file" class="upload-file-input" accept=".pdf,.docx,.txt,.md" />
+          <button id="uploadBtn" class="upload-submit-btn">Upload &amp; Index</button>
+          <div id="uploadStatus" class="upload-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button id="clearHistoryBtn" class="footer-btn">🗑 Clear</button>
+      <button id="refreshBtn" class="footer-btn">↺ Refresh</button>
+    </div>
+  </aside>
+
+  <!-- ── MAIN CHAT AREA ── -->
+  <main class="main">
+    <div class="main-header">
+      <div class="main-title" id="mainTitle">New Chat</div>
+      <div class="main-meta" id="mainMeta"></div>
+    </div>
+
+    <div class="chat-thread" id="chatThread">
+      <div class="chat-empty">
+        <div class="chat-empty-icon">💬</div>
+        <div class="chat-empty-title">Start a conversation</div>
+        <div class="chat-empty-hint">Upload a document first, then ask questions below.</div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <textarea id="question" class="input-textarea" rows="1" placeholder="Ask a question… (Enter to send, Shift+Enter for newline)"></textarea>
+      <button id="askBtn" class="ask-btn">Ask</button>
+    </div>
+  </main>
+
+  <script>
+    // ── DOM refs ──────────────────────────────────────
+    const newChatBtn      = document.getElementById('newChatBtn');
+    const askBtn          = document.getElementById('askBtn');
+    const docFile         = document.getElementById('docFile');
+    const uploadBtn       = document.getElementById('uploadBtn');
+    const uploadStatus    = document.getElementById('uploadStatus');
+    const uploadToggle    = document.getElementById('uploadToggle');
+    const uploadBody      = document.getElementById('uploadBody');
+    const uploadArrow     = document.getElementById('uploadArrow');
+    const question        = document.getElementById('question');
+    const chatThread      = document.getElementById('chatThread');
+    const sessionsList    = document.getElementById('sessionsList');
+    const mainTitle       = document.getElementById('mainTitle');
+    const mainMeta        = document.getElementById('mainMeta');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const refreshBtn      = document.getElementById('refreshBtn');
+
+    // ── State ─────────────────────────────────────────
+    let currentChatId = null;
+    let cachedSessions = [];
+    let historyRequestId = 0;
+    let historyController = null;
+    let uploadPending = false;
+    let chatPending = false;
+    let suppressThreadRender = false;
+
+    function sleep(ms) {
+      return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    // ── Upload toggle ─────────────────────────────────
+    uploadToggle.addEventListener('click', () => {
+      const open = uploadBody.classList.toggle('open');
+      uploadArrow.classList.toggle('open', open);
+    });
+
+    // ── Utilities ─────────────────────────────────────
+    function setBusy(btn, busy, busyLabel, idleLabel) {
+      btn.disabled = busy;
+      btn.textContent = busy ? busyLabel : idleLabel;
+    }
+
+    function escapeHtml(v) {
+      return String(v)
+        .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    async function fetchJson(url, options = {}, timeoutMs = 15000) {
+      const ctrl = new AbortController();
+      const tid = window.setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { ...options, signal: ctrl.signal });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Request failed');
+        return data;
+      } catch (err) {
+        if (err.name === 'AbortError') throw new Error('Request timed out.');
+        throw err;
+      } finally {
+        window.clearTimeout(tid);
+      }
+    }
+
+    function timeAgo(isoStr) {
+      const diff = Date.now() - new Date(isoStr).getTime();
+      if (isNaN(diff) || diff < 0) return '';
+      const m = Math.floor(diff / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return m + 'm ago';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + 'h ago';
+      return Math.floor(h / 24) + 'd ago';
+    }
+
+    // ── Auto-resize textarea + Enter to send ──────────
+    question.addEventListener('input', () => {
+      question.style.height = 'auto';
+      question.style.height = Math.min(question.scrollHeight, 140) + 'px';
+    });
+    question.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askBtn.click(); }
+    });
+
+    // ── Session sidebar ───────────────────────────────
+    function renderSessions(sessions) {
+      cachedSessions = sessions;
+      if (!sessions.length) {
+        sessionsList.innerHTML = '<div class="sessions-empty">No chats yet.</div>';
+        return;
+      }
+      sessionsList.innerHTML = sessions.map((s) => {
+        const title = escapeHtml(s.title || 'Untitled Chat');
+        const active = s.id === currentChatId ? ' active' : '';
+        return `<div class="session-tab${active}" data-sid="${escapeHtml(s.id)}" onclick="selectSession('${s.id.replaceAll("'","")}')">
+          <div class="session-tab-title">${title}</div>
+          <div class="session-tab-time">${timeAgo(s.updated_at)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function syncActiveSidebarTab() {
+      document.querySelectorAll('.session-tab').forEach((el) => {
+        el.classList.toggle('active', el.dataset.sid === currentChatId);
+      });
+    }
+
+    // ── Chat thread rendering ─────────────────────────
+    function turnHtml(t) {
+      const sources = (t.sources || [])
+        .map((s) => `<span class="source-tag">${escapeHtml(s)}</span>`).join('');
+      const ms = t.model_response_ms ? `${escapeHtml(t.model||'')} · ${t.model_response_ms} ms` : '';
+      const meta = (sources || ms)
+        ? `<div class="bubble-meta">${sources}<span>${escapeHtml(ms)}</span></div>` : '';
+      return `<div class="turn">
+        <div class="bubble-q">${escapeHtml(t.question || '')}</div>
+        <div class="bubble-a">${escapeHtml(t.answer || '')}</div>
+        ${meta}
+      </div>`;
+    }
+
+    function renderThread(session) {
+      if (!session || !session.turns || !session.turns.length) {
+        chatThread.innerHTML = `<div class="chat-empty">
+          <div class="chat-empty-icon">💬</div>
+          <div class="chat-empty-title">Session ready</div>
+          <div class="chat-empty-hint">Ask your first question below.</div>
+        </div>`;
+        return;
+      }
+      chatThread.innerHTML = session.turns.map(turnHtml).join('');
+      chatThread.scrollTop = chatThread.scrollHeight;
+    }
+
+    function appendThinkingBubble(q) {
+      chatThread.querySelector('.chat-empty')?.remove();
+      const div = document.createElement('div');
+      div.className = 'turn';
+      div.id = 'thinking-turn';
+      div.innerHTML = `<div class="bubble-q">${escapeHtml(q)}</div>
+        <div class="bubble-a thinking" id="thinking-bubble">Thinking…</div>`;
+      chatThread.appendChild(div);
+      chatThread.scrollTop = chatThread.scrollHeight;
+    }
+
+    function resolveThinkingBubble(turn) {
+      const el = document.getElementById('thinking-turn');
+      if (el) el.outerHTML = turnHtml(turn);
+      chatThread.scrollTop = chatThread.scrollHeight;
+    }
+
+    function failThinkingBubble(msg) {
+      const el = document.getElementById('thinking-bubble');
+      if (el) { el.textContent = 'Error: ' + msg; el.className = 'bubble-a error'; }
+    }
+
+    // ── Load history ──────────────────────────────────
+    async function loadHistory({ background = false } = {}) {
+      const reqId = ++historyRequestId;
+      if (historyController) historyController.abort();
+      historyController = new AbortController();
+
+      try {
+        const res = await fetch('/chat/history?limit_chats=20&limit_turns=50', { signal: historyController.signal });
+        const data = await res.json();
+        if (!res.ok || reqId !== historyRequestId) return;
+
+        renderSessions(data.sessions || []);
+
+        if (currentChatId) {
+          const s = (data.sessions || []).find((x) => x.id === currentChatId);
+          if (s) {
+            mainTitle.textContent = s.title || 'Untitled Chat';
+            if (!suppressThreadRender) renderThread(s);
+          }
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        if (!background) sessionsList.innerHTML = `<div class="sessions-empty">Error: ${escapeHtml(err.message)}</div>`;
+      } finally {
+        if (reqId === historyRequestId) historyController = null;
+        suppressThreadRender = false;
+      }
+    }
+
+    // ── Select session ────────────────────────────────
+    function selectSession(sessionId) {
+      currentChatId = sessionId;
+      syncActiveSidebarTab();
+      const s = cachedSessions.find((x) => x.id === sessionId);
+      if (s) {
+        mainTitle.textContent = s.title || 'Untitled Chat';
+        mainMeta.textContent = '';
+        renderThread(s);
+      }
+    }
+    window.selectSession = selectSession;
+
+    // ── New Chat ──────────────────────────────────────
+    newChatBtn.addEventListener('click', () => {
+      currentChatId = null;
+      syncActiveSidebarTab();
+      mainTitle.textContent = 'New Chat';
+      mainMeta.textContent = '';
+      question.value = '';
+      question.style.height = 'auto';
+      chatThread.innerHTML = `<div class="chat-empty">
+        <div class="chat-empty-icon">💬</div>
+        <div class="chat-empty-title">New chat</div>
+        <div class="chat-empty-hint">Ask your first question below.</div>
+      </div>`;
+    });
+
+    // ── Upload ────────────────────────────────────────
+    uploadBtn.addEventListener('click', async () => {
+      if (uploadPending) return;
+      if (!docFile.files.length) {
+        uploadStatus.className = 'upload-status err';
+        uploadStatus.textContent = 'Select a file first.';
+        return;
+      }
+      const fd = new FormData();
+      fd.append('file', docFile.files[0]);
+      uploadStatus.className = 'upload-status';
+      uploadStatus.textContent = 'Uploading…';
+      uploadPending = true;
+      setBusy(uploadBtn, true, 'Uploading…', 'Upload & Index');
+      try {
+        const d = await fetchJson('/upload', { method: 'POST', body: fd }, 300000);
+        const reuse = d.reused_existing_index ? ' (reused existing index)' : '';
+
+        if (d.reused_existing_index) {
+          const reset = d.index_reset_message ? `\n⚠ ${d.index_reset_message}` : '';
+          uploadStatus.className = 'upload-status ok';
+          uploadStatus.textContent =
+            `✓ ${d.file}${reuse}\n${d.chunks} chunks reused${reset}`;
+          return;
+        }
+
+        if (!d.job_id) {
+          throw new Error('Upload job was not created.');
+        }
+
+        uploadStatus.textContent = 'Upload saved. Waiting for indexing job…';
+
+        while (true) {
+          await sleep(2000);
+          const job = await fetchJson(`/upload/jobs/${d.job_id}`, {}, 15000);
+
+          if (job.status === 'queued' || job.status === 'running') {
+            uploadStatus.className = 'upload-status';
+            uploadStatus.textContent = job.message || `Indexing ${d.file}…`;
+            continue;
+          }
+
+          if (job.status === 'failed') {
+            throw new Error(job.message || 'Indexing failed.');
+          }
+
+          if (job.status === 'completed') {
+            const result = job.result || {};
+            const doneReuse = result.reused_existing_index ? ' (reused existing index)' : '';
+            const reset = result.index_reset_message ? `\n⚠ ${result.index_reset_message}` : '';
+            uploadStatus.className = 'upload-status ok';
+            uploadStatus.textContent =
+              `✓ ${result.file || d.file}${doneReuse}\n${result.chunks} chunks · ${result.embedding_ms}ms embed · ${result.indexing_ms}ms total${reset}`;
+            break;
+          }
+        }
+      } catch (err) {
+        uploadStatus.className = 'upload-status err';
+        uploadStatus.textContent = '✗ ' + err.message;
+      } finally {
+        uploadPending = false;
+        setBusy(uploadBtn, false, 'Uploading…', 'Upload & Index');
+      }
+    });
+
+    // ── Ask ───────────────────────────────────────────
+    askBtn.addEventListener('click', async () => {
+      if (chatPending) return;
+      const q = question.value.trim();
+      if (!q) return;
+
+      appendThinkingBubble(q);
+      question.value = '';
+      question.style.height = 'auto';
+      chatPending = true;
+      setBusy(askBtn, true, 'Asking…', 'Ask');
+
+      try {
+        const d = await fetchJson('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q, chat_id: currentChatId }),
+        }, 480000);
+
+        currentChatId = d.chat_id || currentChatId;
+        mainMeta.textContent = `${d.model} · ${d.model_response_ms} ms`;
+        resolveThinkingBubble({ question: q, answer: d.answer, sources: d.sources || [], model: d.model, model_response_ms: d.model_response_ms });
+
+        suppressThreadRender = true;
+        loadHistory({ background: true });
+      } catch (err) {
+        failThinkingBubble(err.message);
+      } finally {
+        chatPending = false;
+        setBusy(askBtn, false, 'Asking…', 'Ask');
+      }
+    });
+
+    // ── Clear history ─────────────────────────────────
+    clearHistoryBtn.addEventListener('click', async () => {
+      if (!confirm('Delete all chat history?')) return;
+      try {
+        await fetchJson('/chat/history', { method: 'DELETE' });
+        currentChatId = null;
+        cachedSessions = [];
+        renderSessions([]);
+        mainTitle.textContent = 'New Chat';
+        mainMeta.textContent = '';
+        chatThread.innerHTML = `<div class="chat-empty">
+          <div class="chat-empty-icon">💬</div>
+          <div class="chat-empty-title">History cleared</div>
+          <div class="chat-empty-hint">Start a new chat below.</div>
+        </div>`;
+      } catch (err) {
+        alert('Failed to clear: ' + err.message);
+      }
+    });
+
+    // ── Refresh ───────────────────────────────────────
+    refreshBtn.addEventListener('click', () => loadHistory());
+
+    // ── Init ──────────────────────────────────────────
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => loadHistory({ background: true }));
+    } else {
+      window.setTimeout(() => loadHistory({ background: true }), 0);
+    }
+  </script>
+</body>
+</html>
