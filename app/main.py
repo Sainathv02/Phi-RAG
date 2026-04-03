@@ -31,7 +31,11 @@ CHROMA_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE.touch(exist_ok=True)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-MODEL_NAME = os.getenv("MODEL_NAME", "phi4-mini")
+MODEL_NAME = os.getenv("MODEL_NAME", "phi4-mini:3.8b-q4_K_M")
+CHAT_MODEL_OPTIONS_RAW = os.getenv(
+    "CHAT_MODEL_OPTIONS",
+    "phi4-mini:3.8b-q4_K_M,qwen2.5:3b-instruct-q4_K_M,qwen2.5:1.5b",
+)
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "150"))
@@ -54,6 +58,7 @@ CHAT_TOP_P = float(os.getenv("CHAT_TOP_P", "0.9"))
 CHAT_NUM_PREDICT = int(os.getenv("CHAT_NUM_PREDICT", "128"))
 CHAT_KEEP_ALIVE = os.getenv("CHAT_KEEP_ALIVE", "30m")
 CHAT_REQUEST_TIMEOUT_SEC = int(os.getenv("CHAT_REQUEST_TIMEOUT_SEC", "420"))
+CHAT_HISTORY_TURNS = int(os.getenv("CHAT_HISTORY_TURNS", "6"))
 MAX_HISTORY_ITEMS = int(os.getenv("MAX_HISTORY_ITEMS", "500"))
 DOC_SNIPPET_CHARS = int(os.getenv("DOC_SNIPPET_CHARS", "900"))
 INDEX_MAX_CHUNKS = int(os.getenv("INDEX_MAX_CHUNKS", "0"))
@@ -65,6 +70,20 @@ MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 
 COLLECTION_NAME = "rag_docs"
 INDEX_SCHEMA_VERSION = "v2_parent_child"
+
+
+def parse_model_options(raw_value: str) -> List[str]:
+    models: List[str] = []
+    for token in raw_value.split(","):
+        model = token.strip()
+        if model and model not in models:
+            models.append(model)
+    return models
+
+
+CHAT_MODEL_OPTIONS = parse_model_options(CHAT_MODEL_OPTIONS_RAW)
+if MODEL_NAME not in CHAT_MODEL_OPTIONS:
+    CHAT_MODEL_OPTIONS.insert(0, MODEL_NAME)
 
 
 def validate_runtime_config() -> None:
@@ -98,6 +117,8 @@ def validate_runtime_config() -> None:
         raise ValueError("MIN_RETRIEVAL_RESULTS must be greater than 0.")
     if CHAT_REQUEST_TIMEOUT_SEC <= 0:
         raise ValueError("CHAT_REQUEST_TIMEOUT_SEC must be greater than 0.")
+    if CHAT_HISTORY_TURNS < 0:
+        raise ValueError("CHAT_HISTORY_TURNS cannot be negative.")
     if MAX_UPLOAD_MB <= 0:
         raise ValueError("MAX_UPLOAD_MB must be greater than 0.")
     if CHROMA_ADD_BATCH_SIZE <= 0:
@@ -136,6 +157,8 @@ class ChatRequest(BaseModel):
     question: str
     top_k: int = DEFAULT_TOP_K
     chat_id: Optional[str] = None
+    model: Optional[str] = None
+    source_filters: Optional[List[str]] = None
 
 
 class ChatResponse(BaseModel):
@@ -308,6 +331,30 @@ def append_turn_to_session(chat_id: Optional[str], turn: ChatTurn) -> str:
     return target_id
 
 
+def get_recent_session_turns(chat_id: Optional[str], limit_turns: int) -> List[ChatTurn]:
+    if not chat_id or limit_turns <= 0:
+        return []
+
+    with history_lock:
+        store = load_history_store_unlocked()
+
+    sessions = store.get("sessions", [])
+    for payload in sessions:
+        if str(payload.get("id", "")) != chat_id:
+            continue
+
+        turns_payload = payload.get("turns", [])[-limit_turns:]
+        turns: List[ChatTurn] = []
+        for t in turns_payload:
+            try:
+                turns.append(ChatTurn(**t))
+            except Exception:
+                continue
+        return turns
+
+    return []
+
+
 def clear_chat_history() -> int:
     with history_lock:
         store = load_history_store_unlocked()
@@ -401,6 +448,25 @@ def get_ollama_status(timeout_seconds: int = 5) -> Tuple[bool, List[str], Option
     models = payload.get("models", []) if isinstance(payload, dict) else []
     names = [model.get("name", "") for model in models if isinstance(model, dict) and model.get("name")]
     return True, names, None
+
+
+def list_indexed_sources() -> List[str]:
+    rows = collection.get(include=["metadatas"])
+    metadatas = rows.get("metadatas", []) if isinstance(rows, dict) else []
+    names: List[str] = []
+    seen: set[str] = set()
+
+    for md in metadatas:
+        if not isinstance(md, dict):
+            continue
+        source = str(md.get("source", "")).strip()
+        if not source or source in seen:
+            continue
+        seen.add(source)
+        names.append(source)
+
+    names.sort(key=lambda s: s.lower())
+    return names
 
 
 def lookup_existing_file_index(file_hash: str) -> Tuple[bool, int]:
@@ -776,7 +842,12 @@ def build_context(
     return trimmed_context.strip(), selected_metadatas
 
 
-def ollama_chat(question: str, context: str) -> Tuple[str, int]:
+def ollama_chat(
+    question: str,
+    context: str,
+    model_name: str,
+    recent_turns: Optional[List[ChatTurn]] = None,
+) -> Tuple[str, int]:
     system_prompt = (
         "You are a careful RAG assistant. Use ONLY the provided context to answer. "
         "If the answer is not explicitly present in context, say: 'I do not know based on the provided documents.' "
@@ -788,9 +859,23 @@ def ollama_chat(question: str, context: str) -> Tuple[str, int]:
         "Answer clearly and concisely. Prefer direct quotes/paraphrases from context and avoid assumptions."
     )
 
+    messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+
+    if recent_turns:
+        # Include a short rolling memory so follow-up questions in a chat remain coherent.
+        for turn in recent_turns[-CHAT_HISTORY_TURNS:]:
+            q = turn.question.strip()
+            a = turn.answer.strip()
+            if q:
+                messages.append({"role": "user", "content": q[:1200]})
+            if a:
+                messages.append({"role": "assistant", "content": a[:1600]})
+
+    messages.append({"role": "user", "content": user_prompt})
+
     model_start = time.perf_counter()
     payload = {
-        "model": MODEL_NAME,
+        "model": model_name,
         "stream": False,
         "keep_alive": CHAT_KEEP_ALIVE,
         "options": {
@@ -798,10 +883,7 @@ def ollama_chat(question: str, context: str) -> Tuple[str, int]:
             "top_p": CHAT_TOP_P,
             "num_predict": CHAT_NUM_PREDICT,
         },
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+        "messages": messages,
     }
 
     try:
@@ -858,6 +940,7 @@ def health(response: Response) -> dict:
     return {
         "status": status,
         "model": MODEL_NAME,
+        "chat_model_options": CHAT_MODEL_OPTIONS,
         "embedding_model": EMBEDDING_MODEL,
         "ollama": {
             "base_url": OLLAMA_BASE_URL,
@@ -871,6 +954,29 @@ def health(response: Response) -> dict:
         },
         "issues": issues,
     }
+
+
+@app.get("/models")
+def list_chat_models() -> dict:
+    ollama_ok, available_models, _ = get_ollama_status()
+    available_set = set(available_models)
+    model_items = [
+        {
+            "name": name,
+            "installed": name in available_set,
+        }
+        for name in CHAT_MODEL_OPTIONS
+    ]
+    return {
+        "default_model": MODEL_NAME,
+        "models": model_items,
+        "ollama_reachable": ollama_ok,
+    }
+
+
+@app.get("/documents/sources")
+def get_document_sources() -> dict:
+    return {"sources": list_indexed_sources()}
 
 
 @app.get("/chat/history")
@@ -977,9 +1083,43 @@ def chat(req: ChatRequest) -> ChatResponse:
     if index_reset_message:
         raise HTTPException(status_code=400, detail=index_reset_message)
 
+    selected_model = req.model.strip() if isinstance(req.model, str) else ""
+    if not selected_model:
+        selected_model = MODEL_NAME
+
+    if selected_model not in CHAT_MODEL_OPTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid chat model. Choose one of: " + ", ".join(CHAT_MODEL_OPTIONS)
+            ),
+        )
+
     total_docs = collection.count()
     if total_docs == 0:
         raise HTTPException(status_code=400, detail="No documents indexed yet. Upload files first.")
+
+    source_filters: List[str] = []
+    if isinstance(req.source_filters, list):
+        for raw in req.source_filters:
+            value = str(raw).strip()
+            if value and value not in source_filters:
+                source_filters.append(value)
+
+    query_where: Optional[Dict[str, Any]] = None
+    if source_filters:
+        if len(source_filters) == 1:
+            query_where = {"source": source_filters[0]}
+        else:
+            query_where = {"source": {"$in": source_filters}}
+
+        filtered = collection.get(where=query_where, include=[])
+        filtered_ids = filtered.get("ids", []) if isinstance(filtered, dict) else []
+        if not filtered_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Selected document source is not indexed yet. Upload and index the file first.",
+            )
 
     q_embedding = ollama_embed([req.question])[0]
     retrieval_k = max(1, req.top_k)
@@ -989,6 +1129,7 @@ def chat(req: ChatRequest) -> ChatResponse:
             query_embeddings=[q_embedding],
             n_results=retrieval_k,
             include=["documents", "metadatas", "distances"],
+            where=query_where,
         )
     except InvalidArgumentError as exc:
         if is_dimension_mismatch_error(exc):
@@ -1008,7 +1149,8 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     retrieved_items = list(zip(docs, metadatas, distances))
     context, selected_metadatas = build_context(retrieved_items)
-    answer, model_response_ms = ollama_chat(req.question, context)
+    recent_turns = get_recent_session_turns(req.chat_id, CHAT_HISTORY_TURNS)
+    answer, model_response_ms = ollama_chat(req.question, context, selected_model, recent_turns)
 
     sources = []
     for m in selected_metadatas:
@@ -1021,7 +1163,7 @@ def chat(req: ChatRequest) -> ChatResponse:
         question=req.question,
         answer=answer,
         sources=sources,
-        model=MODEL_NAME,
+        model=selected_model,
         model_response_ms=model_response_ms,
         total_response_ms=int((time.perf_counter() - request_start) * 1000),
     )

@@ -15,19 +15,22 @@ services:
       - ollama
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - MODEL_NAME=${MODEL_NAME:-phi4-mini}
+      - MODEL_NAME=${MODEL_NAME:-phi4-mini:3.8b-q4_K_M}
+      - CHAT_MODEL_OPTIONS=${CHAT_MODEL_OPTIONS:-phi4-mini:3.8b-q4_K_M,qwen2.5:3b-instruct-q4_K_M,qwen2.5:1.5b}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
     entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "
-      echo 'Waiting for Ollama...';
-      until ollama list > /dev/null 2>&1; do sleep 2; done;
-      echo 'Pulling chat model:' $$MODEL_NAME;
-      ollama pull $$MODEL_NAME;
-      echo 'Pulling embedding model:' $$EMBEDDING_MODEL;
-      ollama pull $$EMBEDDING_MODEL;
-      echo 'Model pull completed.';
-      "
+    command:
+      - |
+        echo 'Waiting for Ollama...';
+        until ollama list > /dev/null 2>&1; do sleep 2; done;
+        ALL_CHAT_MODELS="$$MODEL_NAME,$$CHAT_MODEL_OPTIONS";
+        echo "$$ALL_CHAT_MODELS" | tr ',' '\n' | sed 's/^ *//;s/ *$$//' | awk 'NF' | sort -u | while read -r model; do
+          echo "Pulling chat model: $$model";
+          ollama pull "$$model";
+        done;
+        echo 'Pulling embedding model:' $$EMBEDDING_MODEL;
+        ollama pull $$EMBEDDING_MODEL;
+        echo 'Model pull completed.';
 
   rag-api:
     build:
@@ -39,7 +42,8 @@ services:
         condition: service_completed_successfully
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - MODEL_NAME=${MODEL_NAME:-phi4-mini}
+      - MODEL_NAME=${MODEL_NAME:-phi4-mini:3.8b-q4_K_M}
+      - CHAT_MODEL_OPTIONS=${CHAT_MODEL_OPTIONS:-phi4-mini:3.8b-q4_K_M,qwen2.5:3b-instruct-q4_K_M,qwen2.5:1.5b}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
       - MAX_CHUNK_SIZE=1400
       - CHUNK_OVERLAP=100
@@ -62,6 +66,7 @@ services:
       - CHAT_NUM_PREDICT=128
       - CHAT_KEEP_ALIVE=30m
       - CHAT_REQUEST_TIMEOUT_SEC=420
+      - CHAT_HISTORY_TURNS=6
       - MAX_HISTORY_ITEMS=500
       - DOC_SNIPPET_CHARS=900
       - MAX_UPLOAD_MB=100

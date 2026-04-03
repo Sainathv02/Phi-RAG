@@ -143,88 +143,6 @@
       text-align: center;
     }
 
-    /* ─── SIDEBAR UPLOAD PANEL ───────────────────── */
-    .upload-panel {
-      flex-shrink: 0;
-      border-top: 1px solid var(--sidebar-border);
-      padding: 0 12px;
-    }
-
-    .upload-toggle {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 2px;
-      cursor: pointer;
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-      color: var(--sidebar-muted);
-      user-select: none;
-    }
-    .upload-toggle:hover { color: var(--sidebar-text); }
-
-    .upload-arrow { transition: transform 200ms; font-size: 0.65rem; }
-    .upload-arrow.open { transform: rotate(90deg); }
-
-    .upload-body {
-      overflow: hidden;
-      max-height: 0;
-      transition: max-height 250ms ease;
-    }
-    .upload-body.open { max-height: 230px; }
-
-    .upload-inner { padding-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
-
-    .upload-file-input {
-      width: 100%;
-      font-size: 0.76rem;
-      padding: 6px 8px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      color: var(--sidebar-text);
-      cursor: pointer;
-    }
-    .upload-file-input::file-selector-button {
-      background: rgba(255,255,255,0.1);
-      border: 0;
-      border-radius: 5px;
-      padding: 2px 8px;
-      color: var(--sidebar-text);
-      font-size: 0.73rem;
-      cursor: pointer;
-      margin-right: 6px;
-    }
-
-    .upload-submit-btn {
-      width: 100%;
-      padding: 7px;
-      background: rgba(221,107,32,0.22);
-      color: #ffbf80;
-      border: 1px solid rgba(221,107,32,0.3);
-      border-radius: 8px;
-      font: inherit;
-      font-size: 0.79rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 120ms;
-    }
-    .upload-submit-btn:hover { background: rgba(221,107,32,0.38); }
-    .upload-submit-btn:disabled { opacity: 0.45; cursor: default; }
-
-    .upload-status {
-      font-size: 0.72rem;
-      color: var(--sidebar-muted);
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 56px;
-      overflow-y: auto;
-    }
-    .upload-status.ok { color: #80c880; }
-    .upload-status.err { color: #e08080; }
-
     /* ─── SIDEBAR BOTTOM ACTIONS ─────────────────── */
     .sidebar-footer {
       flex-shrink: 0;
@@ -378,6 +296,112 @@
       border-top: 1px solid var(--border);
     }
 
+    .model-select {
+      flex-shrink: 0;
+      height: 44px;
+      min-width: 220px;
+      padding: 0 10px;
+      font: inherit;
+      font-size: 0.84rem;
+      color: var(--ink);
+      background: #fffdf9;
+      border: 1px solid #e8c9aa;
+      border-radius: 12px;
+      outline: none;
+    }
+    .model-select:focus { border-color: var(--accent); }
+
+    .model-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .model-picker-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-left: 2px;
+    }
+
+    .composer-tools {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 6px;
+      background: #fff;
+      border-top: 1px solid var(--border);
+    }
+
+    .attach-btn {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid #e8c9aa;
+      border-radius: 10px;
+      background: #fff6ea;
+      color: var(--accent-2);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .upload-status {
+      font-size: 0.72rem;
+      color: var(--muted);
+      min-height: 18px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+    .upload-status.ok { color: #2f855a; }
+    .upload-status.err { color: #b83232; }
+
+    .attached-docs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 24px;
+      max-width: 44vw;
+      overflow: hidden;
+    }
+
+    .attached-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff8ef;
+      font-size: 0.74rem;
+      color: var(--ink);
+      max-width: 220px;
+    }
+
+    .attached-chip-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .attached-chip-remove {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.82rem;
+      line-height: 1;
+      padding: 0;
+    }
+
     .input-textarea {
       flex: 1;
       min-height: 44px;
@@ -417,6 +441,8 @@
     @media (max-width: 680px) {
       .sidebar { width: 200px; min-width: 200px; }
       .bubble-q, .bubble-a { max-width: 88%; }
+      .model-select { min-width: 140px; }
+      .attached-docs { max-width: 34vw; }
     }
     @media (max-width: 480px) {
       body { flex-direction: column; }
@@ -449,21 +475,6 @@
       <div class="sessions-empty">No chats yet.</div>
     </div>
 
-    <!-- Upload panel -->
-    <div class="upload-panel">
-      <div class="upload-toggle" id="uploadToggle">
-        <span>📄 Upload Document</span>
-        <span class="upload-arrow" id="uploadArrow">▸</span>
-      </div>
-      <div class="upload-body" id="uploadBody">
-        <div class="upload-inner">
-          <input id="docFile" type="file" class="upload-file-input" accept=".pdf,.docx,.txt,.md" />
-          <button id="uploadBtn" class="upload-submit-btn">Upload &amp; Index</button>
-          <div id="uploadStatus" class="upload-status"></div>
-        </div>
-      </div>
-    </div>
-
     <div class="sidebar-footer">
       <button id="clearHistoryBtn" class="footer-btn">🗑 Clear</button>
       <button id="refreshBtn" class="footer-btn">↺ Refresh</button>
@@ -485,8 +496,19 @@
       </div>
     </div>
 
+    <div class="composer-tools">
+      <button id="attachBtn" class="attach-btn">Attach Document</button>
+      <input id="docFile" type="file" accept=".pdf,.docx,.txt,.md" style="display:none" />
+      <div id="attachedDocs" class="attached-docs"></div>
+      <div id="uploadStatus" class="upload-status"></div>
+    </div>
+
     <div class="input-bar">
       <textarea id="question" class="input-textarea" rows="1" placeholder="Ask a question… (Enter to send, Shift+Enter for newline)"></textarea>
+      <div class="model-picker">
+        <div class="model-picker-label">Model</div>
+        <select id="modelSelect" class="model-select" title="Chat model"></select>
+      </div>
       <button id="askBtn" class="ask-btn">Ask</button>
     </div>
   </main>
@@ -495,17 +517,16 @@
     // ── DOM refs ──────────────────────────────────────
     const newChatBtn      = document.getElementById('newChatBtn');
     const askBtn          = document.getElementById('askBtn');
+    const attachBtn       = document.getElementById('attachBtn');
     const docFile         = document.getElementById('docFile');
-    const uploadBtn       = document.getElementById('uploadBtn');
+    const attachedDocs    = document.getElementById('attachedDocs');
     const uploadStatus    = document.getElementById('uploadStatus');
-    const uploadToggle    = document.getElementById('uploadToggle');
-    const uploadBody      = document.getElementById('uploadBody');
-    const uploadArrow     = document.getElementById('uploadArrow');
     const question        = document.getElementById('question');
     const chatThread      = document.getElementById('chatThread');
     const sessionsList    = document.getElementById('sessionsList');
     const mainTitle       = document.getElementById('mainTitle');
     const mainMeta        = document.getElementById('mainMeta');
+    const modelSelect     = document.getElementById('modelSelect');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
     const refreshBtn      = document.getElementById('refreshBtn');
 
@@ -517,16 +538,15 @@
     let uploadPending = false;
     let chatPending = false;
     let suppressThreadRender = false;
+    let defaultModel = '';
+    let draftAttachments = [];
+    const attachmentsByChat = new Map();
 
     function sleep(ms) {
       return new Promise((resolve) => window.setTimeout(resolve, ms));
     }
 
-    // ── Upload toggle ─────────────────────────────────
-    uploadToggle.addEventListener('click', () => {
-      const open = uploadBody.classList.toggle('open');
-      uploadArrow.classList.toggle('open', open);
-    });
+    attachBtn.addEventListener('click', () => docFile.click());
 
     // ── Utilities ─────────────────────────────────────
     function setBusy(btn, busy, busyLabel, idleLabel) {
@@ -566,6 +586,93 @@
       const h = Math.floor(m / 60);
       if (h < 24) return h + 'h ago';
       return Math.floor(h / 24) + 'd ago';
+    }
+
+    function renderModelOptions(models, selected) {
+      const safeModels = Array.isArray(models) ? models : [];
+      const selectedModel = selected || safeModels[0] || '';
+      modelSelect.innerHTML = safeModels
+        .map((m) => {
+          const name = escapeHtml(m.name || '');
+          const installed = m.installed ? '' : ' (not installed)';
+          const chosen = (m.name === selectedModel) ? ' selected' : '';
+          return `<option value="${name}"${chosen}>${name}${installed}</option>`;
+        })
+        .join('');
+    }
+
+    async function loadModelOptions() {
+      try {
+        const payload = await fetchJson('/models', {}, 12000);
+        const models = payload.models || [];
+        defaultModel = payload.default_model || '';
+        renderModelOptions(models, defaultModel);
+      } catch (err) {
+        renderModelOptions([
+          { name: 'phi4-mini:3.8b-q4_K_M', installed: true },
+          { name: 'qwen2.5:3b-instruct-q4_K_M', installed: true },
+          { name: 'qwen2.5:1.5b', installed: true },
+        ], 'phi4-mini:3.8b-q4_K_M');
+      }
+    }
+
+    function getActiveAttachments() {
+      if (!currentChatId) return draftAttachments;
+      return attachmentsByChat.get(currentChatId) || [];
+    }
+
+    function setActiveAttachments(nextAttachments) {
+      const normalized = Array.isArray(nextAttachments)
+        ? nextAttachments.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+      if (!currentChatId) {
+        draftAttachments = normalized;
+        return;
+      }
+      attachmentsByChat.set(currentChatId, normalized);
+    }
+
+    function renderAttachments() {
+      const items = getActiveAttachments();
+      if (!items.length) {
+        attachedDocs.innerHTML = '';
+        return;
+      }
+
+      attachedDocs.innerHTML = items
+        .map((name, idx) => {
+          const safe = escapeHtml(name);
+          return `<span class="attached-chip"><span class="attached-chip-name">${safe}</span><button class="attached-chip-remove" data-idx="${idx}" title="Remove attachment">x</button></span>`;
+        })
+        .join('');
+
+      attachedDocs.querySelectorAll('.attached-chip-remove').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const i = Number(btn.dataset.idx);
+          const next = getActiveAttachments().slice();
+          next.splice(i, 1);
+          setActiveAttachments(next);
+          renderAttachments();
+        });
+      });
+    }
+
+    function mergeSessionAttachments(sessions) {
+      const safeSessions = Array.isArray(sessions) ? sessions : [];
+      safeSessions.forEach((session) => {
+        const sid = String(session.id || '');
+        if (!sid) return;
+        const sources = [];
+        const turns = Array.isArray(session.turns) ? session.turns : [];
+        turns.forEach((turn) => {
+          const tSources = Array.isArray(turn.sources) ? turn.sources : [];
+          tSources.forEach((src) => {
+            const s = String(src || '').trim();
+            if (s && !sources.includes(s)) sources.push(s);
+          });
+        });
+        attachmentsByChat.set(sid, sources);
+      });
     }
 
     // ── Auto-resize textarea + Enter to send ──────────
@@ -644,6 +751,33 @@
       chatThread.scrollTop = chatThread.scrollHeight;
     }
 
+    async function animateThinkingBubble(turn) {
+      const el = document.getElementById('thinking-turn');
+      if (!el) {
+        resolveThinkingBubble(turn);
+        return;
+      }
+
+      const safeQ = escapeHtml(turn.question || '');
+      el.innerHTML = `<div class="bubble-q">${safeQ}</div><div class="bubble-a" id="typing-bubble"></div>`;
+      const typingEl = document.getElementById('typing-bubble');
+      if (!typingEl) {
+        resolveThinkingBubble(turn);
+        return;
+      }
+
+      const fullText = String(turn.answer || '');
+      const total = fullText.length;
+      // Fast, lightweight typewriter effect for better conversational feel.
+      for (let i = 0; i <= total; i += 3) {
+        typingEl.textContent = fullText.slice(0, i);
+        chatThread.scrollTop = chatThread.scrollHeight;
+        await sleep(8);
+      }
+
+      resolveThinkingBubble(turn);
+    }
+
     function failThinkingBubble(msg) {
       const el = document.getElementById('thinking-bubble');
       if (el) { el.textContent = 'Error: ' + msg; el.className = 'bubble-a error'; }
@@ -660,13 +794,16 @@
         const data = await res.json();
         if (!res.ok || reqId !== historyRequestId) return;
 
-        renderSessions(data.sessions || []);
+        const sessions = data.sessions || [];
+        renderSessions(sessions);
+        mergeSessionAttachments(sessions);
 
         if (currentChatId) {
-          const s = (data.sessions || []).find((x) => x.id === currentChatId);
+          const s = sessions.find((x) => x.id === currentChatId);
           if (s) {
             mainTitle.textContent = s.title || 'Untitled Chat';
             if (!suppressThreadRender) renderThread(s);
+            renderAttachments();
           }
         }
       } catch (err) {
@@ -687,6 +824,7 @@
         mainTitle.textContent = s.title || 'Untitled Chat';
         mainMeta.textContent = '';
         renderThread(s);
+        renderAttachments();
       }
     }
     window.selectSession = selectSession;
@@ -699,6 +837,10 @@
       mainMeta.textContent = '';
       question.value = '';
       question.style.height = 'auto';
+      draftAttachments = [];
+      uploadStatus.textContent = '';
+      uploadStatus.className = 'upload-status';
+      renderAttachments();
       chatThread.innerHTML = `<div class="chat-empty">
         <div class="chat-empty-icon">💬</div>
         <div class="chat-empty-title">New chat</div>
@@ -707,7 +849,7 @@
     });
 
     // ── Upload ────────────────────────────────────────
-    uploadBtn.addEventListener('click', async () => {
+    docFile.addEventListener('change', async () => {
       if (uploadPending) return;
       if (!docFile.files.length) {
         uploadStatus.className = 'upload-status err';
@@ -717,9 +859,9 @@
       const fd = new FormData();
       fd.append('file', docFile.files[0]);
       uploadStatus.className = 'upload-status';
-      uploadStatus.textContent = 'Uploading…';
+      uploadStatus.textContent = 'Uploading and indexing...';
       uploadPending = true;
-      setBusy(uploadBtn, true, 'Uploading…', 'Upload & Index');
+      setBusy(attachBtn, true, 'Uploading...', 'Attach Document');
       try {
         const d = await fetchJson('/upload', { method: 'POST', body: fd }, 300000);
         const reuse = d.reused_existing_index ? ' (reused existing index)' : '';
@@ -728,7 +870,11 @@
           const reset = d.index_reset_message ? `\n⚠ ${d.index_reset_message}` : '';
           uploadStatus.className = 'upload-status ok';
           uploadStatus.textContent =
-            `✓ ${d.file}${reuse}\n${d.chunks} chunks reused${reset}`;
+            `Attached ${d.file}${reuse}`;
+          const next = getActiveAttachments().slice();
+          if (d.file && !next.includes(d.file)) next.push(d.file);
+          setActiveAttachments(next);
+          renderAttachments();
           return;
         }
 
@@ -758,7 +904,12 @@
             const reset = result.index_reset_message ? `\n⚠ ${result.index_reset_message}` : '';
             uploadStatus.className = 'upload-status ok';
             uploadStatus.textContent =
-              `✓ ${result.file || d.file}${doneReuse}\n${result.chunks} chunks · ${result.embedding_ms}ms embed · ${result.indexing_ms}ms total${reset}`;
+              `Attached ${result.file || d.file}${doneReuse}`;
+            const attachedName = result.file || d.file || '';
+            const next = getActiveAttachments().slice();
+            if (attachedName && !next.includes(attachedName)) next.push(attachedName);
+            setActiveAttachments(next);
+            renderAttachments();
             break;
           }
         }
@@ -767,7 +918,8 @@
         uploadStatus.textContent = '✗ ' + err.message;
       } finally {
         uploadPending = false;
-        setBusy(uploadBtn, false, 'Uploading…', 'Upload & Index');
+        setBusy(attachBtn, false, 'Uploading...', 'Attach Document');
+        docFile.value = '';
       }
     });
 
@@ -787,12 +939,22 @@
         const d = await fetchJson('/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, chat_id: currentChatId }),
+          body: JSON.stringify({
+            question: q,
+            chat_id: currentChatId,
+            model: modelSelect.value || defaultModel,
+            source_filters: getActiveAttachments(),
+          }),
         }, 480000);
 
+        const oldChatId = currentChatId;
         currentChatId = d.chat_id || currentChatId;
+        if (!oldChatId && currentChatId && draftAttachments.length) {
+          attachmentsByChat.set(currentChatId, draftAttachments.slice());
+          draftAttachments = [];
+        }
         mainMeta.textContent = `${d.model} · ${d.model_response_ms} ms`;
-        resolveThinkingBubble({ question: q, answer: d.answer, sources: d.sources || [], model: d.model, model_response_ms: d.model_response_ms });
+        await animateThinkingBubble({ question: q, answer: d.answer, sources: d.sources || [], model: d.model, model_response_ms: d.model_response_ms });
 
         suppressThreadRender = true;
         loadHistory({ background: true });
@@ -811,7 +973,10 @@
         await fetchJson('/chat/history', { method: 'DELETE' });
         currentChatId = null;
         cachedSessions = [];
+        attachmentsByChat.clear();
+        draftAttachments = [];
         renderSessions([]);
+        renderAttachments();
         mainTitle.textContent = 'New Chat';
         mainMeta.textContent = '';
         chatThread.innerHTML = `<div class="chat-empty">
@@ -829,8 +994,12 @@
 
     // ── Init ──────────────────────────────────────────
     if ('requestIdleCallback' in window) {
+      loadModelOptions();
+      renderAttachments();
       window.requestIdleCallback(() => loadHistory({ background: true }));
     } else {
+      loadModelOptions();
+      renderAttachments();
       window.setTimeout(() => loadHistory({ background: true }), 0);
     }
   </script>

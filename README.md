@@ -1,176 +1,157 @@
 # Phi RAG Chatbot (Dockerized)
 
-A local Retrieval-Augmented Generation (RAG) chatbot built with FastAPI, ChromaDB, and Ollama.
+Local RAG chatbot using FastAPI + ChromaDB + Ollama, with a chat-style UI similar to ChatGPT/Claude.
 
-It supports:
-- Uploading `PDF`, `TXT`, `MD`, and `DOCX` documents
-- Background indexing for large files (no long request blocking)
-- Parent-child chunking for better retrieval precision + answer context quality
-- Persistent chat history with chat sessions
+## What This App Does
 
-## Stack Overview
+- Lets you start multiple chat sessions.
+- Lets you attach documents in the composer area (next to typing).
+- Keeps attachments scoped to the current chat.
+- Retrieves answers from indexed document chunks.
+- Shows source filenames used in each answer.
+- Lets you choose between multiple local chat models.
 
-- `ollama` service: model runtime
-- `model-init` service: pulls chat + embedding models at startup
-- `rag-api` service: FastAPI API + static UI
-- `ChromaDB` (persistent): vector index stored in `app/data/chroma`
+## Tech Stack
+
+- `ollama`: model runtime
+- `model-init`: pulls required models at startup
+- `rag-api`: FastAPI backend + static frontend
+- `ChromaDB`: persistent vector index in `app/data/chroma`
 - `chat_history.jsonl`: persisted chat sessions in `app/data/chat_history.jsonl`
 
-## Default Models
+## Model Options
 
-- Chat model: `phi4-mini`
-- Embedding model: `nomic-embed-text`
+Default configured options:
 
-These defaults are set in both `docker-compose.yml` and `.env.example`.
+- `phi4-mini:3.8b-q4_K_M` (best quality of defaults, higher CPU)
+- `qwen2.5:3b-instruct-q4_K_M` (balanced speed/quality)
+- `qwen2.5:1.5b` (lowest CPU usage, fastest)
+
+Embedding model:
+
+- `nomic-embed-text`
 
 ## Quick Start
 
-1. Start services:
+1. Start the stack:
 
 ```bash
 docker compose up --build
 ```
 
-2. Wait for initial model pull to finish (first run is slower).
+2. Wait until you see:
+
+```text
+Uvicorn running on http://0.0.0.0:8000
+```
 
 3. Open:
+
 - UI: `http://127.0.0.1:8000`
 - API docs: `http://127.0.0.1:8000/docs`
 
-Note: On some Windows setups, `localhost` resolves to IPv6 first and may not work with the Docker port binding. Use `127.0.0.1`.
+Note: On some Windows setups, `localhost` may resolve to IPv6 first. Prefer `127.0.0.1`.
 
-## How Upload and Indexing Works
+## Daily Usage Flow
 
-1. File is streamed to disk with size enforcement (`MAX_UPLOAD_MB`).
-2. File hash is computed (`sha256`) for duplicate detection.
-3. If same file hash is already indexed (same index schema), vectors are reused.
-4. Otherwise indexing runs in the background job queue:
-- extract text
-- build parent-child chunks
-- embed child chunks
-- write vectors to Chroma in batches
-5. UI polls job status until completed/failed.
+1. Click `New Chat`.
+2. Click `Attach Document` near the input box.
+3. Wait for indexing status to show success.
+4. Choose a model from the model dropdown.
+5. Ask questions.
+6. Create another chat for a clean context.
 
-This avoids request timeouts on larger files.
+Behavior details:
 
-## Parent-Child Chunking Strategy
-
-- Parent chunk: larger section for coherence (`PARENT_CHUNK_SIZE`)
-- Child chunk: smaller chunk for embedding/retrieval (`MAX_CHUNK_SIZE`)
-- During answer building, retrieved child hits are expanded to nearby child chunks from the same parent (`PARENT_WINDOW_CHILD_SPAN`)
-
-Why this is used:
-- Smaller embedded chunks improve retrieval precision.
-- Parent-window expansion gives richer context to the chat model.
-
-## API Endpoints
-
-- `GET /health`
-	- Returns health and model/index state
-	- Returns `503` when Ollama is unreachable or index reset is required
-
-- `POST /upload`
-	- Accepts file upload
-	- Returns immediately with job details for new indexing:
-		- `job_id`, `status=queued`
-	- If file already indexed, returns immediate reuse payload (`reused_existing_index=true`)
-
-- `GET /upload/jobs/{job_id}`
-	- Poll upload/indexing job status
-	- States: `queued`, `running`, `completed`, `failed`
-
-- `POST /chat`
-	- Ask a question against indexed docs
-	- Request: `question`, optional `chat_id`, optional `top_k`
-	- Response: `answer`, `sources`, `chat_id`, `model_response_ms`, `total_response_ms`
-
-- `GET /chat/history?limit_chats=20&limit_turns=50`
-	- Returns chat sessions with turns
-
-- `DELETE /chat/history`
-	- Clears all chat sessions
-
-- `DELETE /documents`
-	- Clears indexed vectors
+- New chat starts with no attachments.
+- Attachments are chat-scoped.
+- Sources shown under answers should match the attached docs for that chat.
 
 ## Configuration
 
-Copy `.env.example` to `.env` to override values.
+Copy `.env.example` to `.env` and customize as needed.
 
-Important settings:
+Important model settings:
 
-- Models
-	- `MODEL_NAME=phi4-mini`
-	- `EMBEDDING_MODEL=nomic-embed-text`
+- `MODEL_NAME=phi4-mini:3.8b-q4_K_M`
+- `CHAT_MODEL_OPTIONS=phi4-mini:3.8b-q4_K_M,qwen2.5:3b-instruct-q4_K_M,qwen2.5:1.5b`
+- `EMBEDDING_MODEL=nomic-embed-text`
 
-- Chunking / retrieval
-	- `MAX_CHUNK_SIZE=1400`
-	- `CHUNK_OVERLAP=100`
-	- `PARENT_CHUNK_SIZE=3600`
-	- `PARENT_CHUNK_OVERLAP=500`
-	- `PARENT_WINDOW_CHILD_SPAN=2`
-	- `DEFAULT_TOP_K=4`
-	- `RETRIEVAL_MAX_DISTANCE=1.1`
-	- `MIN_RETRIEVAL_RESULTS=2`
-	- `DOC_SNIPPET_CHARS=900`
+Performance-related settings:
 
-- Embedding performance/safety
-	- `EMBED_BATCH_SIZE=32`
-	- `EMBED_LEGACY_WORKERS=8`
-	- `EMBED_NUM_CTX=512`
-	- `MAX_EMBED_NUM_CTX=2048`
-	- `EMBED_CHARS_PER_TOKEN=4`
-	- `CHROMA_ADD_BATCH_SIZE=256`
-	- `INDEX_MAX_CHUNKS=0` (`0` means no cap)
+- `CHAT_NUM_PREDICT=128`
+- `CHAT_REQUEST_TIMEOUT_SEC=420`
+- `CHAT_HISTORY_TURNS=6`
+- `MAX_CHUNK_SIZE=1400`
+- `EMBED_BATCH_SIZE=32`
+- `MAX_UPLOAD_MB=100`
 
-- Chat generation
-	- `CHAT_TEMPERATURE=0.1`
-	- `CHAT_TOP_P=0.9`
-	- `CHAT_NUM_PREDICT=128`
-	- `CHAT_KEEP_ALIVE=30m`
-	- `CHAT_REQUEST_TIMEOUT_SEC=420`
-	- `MAX_CONTEXT_CHARS=3000`
+## API Endpoints
 
-- Limits/history
-	- `MAX_UPLOAD_MB=100`
-	- `MAX_HISTORY_ITEMS=500`
+- `GET /health`: service + model/index status
+- `GET /models`: allowed chat models and install status
+- `GET /documents/sources`: indexed source filenames
+- `POST /upload`: upload and start background indexing job
+- `GET /upload/jobs/{job_id}`: polling status for indexing job
+- `POST /chat`: ask a RAG question
+- `GET /chat/history`: list chat sessions
+- `DELETE /chat/history`: clear chat sessions
+- `DELETE /documents`: clear indexed vectors
 
-## Common Operations
+## Troubleshooting
 
-Restart with fresh build:
+### UI shows "Failed to fetch"
+
+Usually means backend is not reachable.
+
+Run:
+
+```bash
+docker compose ps
+docker compose logs model-init rag-api
+```
+
+Then verify:
+
+- `http://127.0.0.1:8000/health` returns JSON
+
+### `model-init` fails with `/bin/sh` command errors
+
+This happens if Compose passes `/bin/sh` to `ollama` instead of overriding entrypoint.
+Current `docker-compose.yml` in this repo already includes the correct `entrypoint` for `model-init`.
+
+### Source file shown does not match expected document
+
+- Start a new chat.
+- Attach only the intended document.
+- Ask again and check `sources`.
+
+### CPU is too high / responses too slow
+
+- Use `qwen2.5:1.5b`.
+- Lower `CHAT_NUM_PREDICT`.
+- Keep prompts and attachments focused.
+
+### Embedding model changed or dimension mismatch
+
+If index compatibility reset happens, re-upload documents so vectors are rebuilt.
+
+## Common Commands
+
+Fresh restart:
 
 ```bash
 docker compose down
 docker compose up --build
 ```
 
-Check resolved compose config:
+Inspect resolved config:
 
 ```bash
 docker compose config
 ```
 
-## Troubleshooting
-
-- UI cannot open on `localhost`
-	- Use `http://127.0.0.1:8000`.
-
-- Large uploads timeout
-	- Upload is now background-indexed. Keep the page open and let job polling finish.
-	- If still slow, reduce `MAX_CHUNK_SIZE`, raise `INDEX_MAX_CHUNKS`, or use a smaller/faster embedding model.
-
-- Embedding context errors (`input length exceeds context length`)
-	- The app auto-truncates and can auto-increase `num_ctx` up to `MAX_EMBED_NUM_CTX`.
-	- Tune `EMBED_CHARS_PER_TOKEN` down (for example `3`) if needed.
-
-- Chat generation timeout on CPU
-	- Lower `CHAT_NUM_PREDICT` or increase `CHAT_REQUEST_TIMEOUT_SEC`.
-
-- Embedding model changed
-	- Index schema/embedding compatibility checks may trigger reset.
-	- Re-upload documents after model changes.
-
-## File Support
+## File Types
 
 - Supported: `.pdf`, `.txt`, `.md`, `.docx`
-- Not supported: legacy `.doc`
+- Not supported: `.doc`
