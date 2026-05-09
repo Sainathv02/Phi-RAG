@@ -1,0 +1,9 @@
+/* Chat thread and bubble-level style hooks. */
+
+.chat-thread {
+  scroll-behavior: smooth;
+}
+
+.turn {
+  contain: layout paint;
+}

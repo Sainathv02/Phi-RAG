@@ -1,0 +1,9 @@
+/* Model picker panel hooks. */
+
+.model-panel {
+  contain: layout paint;
+}
+
+.model-item {
+  user-select: none;
+}

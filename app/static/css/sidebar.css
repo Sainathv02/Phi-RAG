@@ -1,0 +1,9 @@
+/* Sidebar-specific style overrides and structure hooks. */
+
+.sidebar {
+  will-change: transform;
+}
+
+.sidebar-footer {
+  align-items: stretch;
+}

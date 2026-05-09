@@ -1,0 +1,7 @@
+/* Mobile-specific hooks retained in dedicated file for responsiveness ownership. */
+
+@media (max-width: 480px) {
+  .chat-empty-hint {
+    max-width: 100%;
+  }
+}
