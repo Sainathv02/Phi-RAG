@@ -240,6 +240,70 @@ Re-upload documents to rebuild the vector index after changing `EMBEDDING_MODEL`
 
 API keys are stored in `sessionStorage` and survive page refreshes within the same tab. They are cleared when the tab is closed. This is intentional — keys are never written to disk.
 
+## Inspecting the SQLite Database
+
+Chat history is stored in SQLite at `data/chat_history.sqlite3` inside the `rag-api` container.
+
+### Schema
+
+| Table | Key columns |
+|---|---|
+| `sessions` | `id`, `title`, `provider`, `model`, `created_at`, `updated_at` |
+| `messages` | `id`, `session_id`, `role` (user/assistant), `content`, `sources`, `created_at` |
+
+### Connect directly inside the container
+
+First find the running container name:
+
+```bash
+docker ps
+```
+
+Then open the SQLite shell (substitute your actual container name from the `NAMES` column):
+
+```bash
+docker exec -it phi-rag-api sqlite3 data/chat_history.sqlite3
+```
+
+> The working directory inside the container is `/app`, so the path is `data/chat_history.sqlite3` — **not** `app/data/`.
+
+### Useful queries
+
+```sql
+-- list all tables
+.tables
+
+-- show schema
+.schema
+
+-- list all chat sessions
+SELECT id, title, provider, model, created_at FROM sessions ORDER BY created_at DESC;
+
+-- list all messages
+SELECT * FROM messages ORDER BY created_at;
+
+-- full conversation view (sessions + messages joined)
+SELECT s.title, s.provider, s.model, m.role, m.content, m.created_at
+FROM sessions s
+JOIN messages m ON m.session_id = s.id
+ORDER BY s.created_at, m.created_at;
+
+-- exit
+.quit
+```
+
+### Copy the database file to your machine
+
+If you prefer a GUI tool like [DB Browser for SQLite](https://sqlitebrowser.org):
+
+```bash
+docker cp phi-rag-api:/app/data/chat_history.sqlite3 ./chat_history.sqlite3
+```
+
+Open `chat_history.sqlite3` in DB Browser to browse tables, run queries, and export data.
+
+---
+
 ## Common Commands
 
 Start (or rebuild after code changes):
