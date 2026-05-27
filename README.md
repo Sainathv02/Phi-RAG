@@ -242,6 +242,8 @@ API keys are stored in `sessionStorage` and survive page refreshes within the sa
 
 ## Inspecting the SQLite Database
 
+> **Note:** The database file is not accessible via HTTP. `http://127.0.0.1:8000/app/data/chat_history.sqlite3` will always return `404 Not Found` — this is correct and intentional. Use `docker exec` or `docker cp` below instead.
+
 Chat history is stored in SQLite at `data/chat_history.sqlite3` inside the `rag-api` container.
 
 ### Schema
