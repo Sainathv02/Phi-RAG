@@ -242,7 +242,7 @@ API keys are stored in `sessionStorage` and survive page refreshes within the sa
 
 ## Inspecting the SQLite Database
 
-> **Note:** The database file is not accessible via HTTP. `http://127.0.0.1:8000/app/data/chat_history.sqlite3` will always return `404 Not Found` — this is correct and intentional. Use `docker exec` or `docker cp` below instead.
+> **Note:** The database file is not accessible via HTTP. `http://127.0.0.1:8000/app/data/chat_history.sqlite3` will always return `404 Not Found` — this is correct and intentional. Use one of the two options below.
 
 Chat history is stored in SQLite at `data/chat_history.sqlite3` inside the `rag-api` container.
 
@@ -253,56 +253,75 @@ Chat history is stored in SQLite at `data/chat_history.sqlite3` inside the `rag-
 | `sessions` | `id`, `title`, `provider`, `model`, `created_at`, `updated_at` |
 | `messages` | `id`, `session_id`, `role` (user/assistant), `content`, `sources`, `created_at` |
 
-### Connect directly inside the container
+---
 
-First find the running container name:
+### Option A — Query directly inside the container (terminal)
+
+**Step 1.** Find the running container name:
 
 ```bash
 docker ps
 ```
 
-Then open the SQLite shell (substitute your actual container name from the `NAMES` column):
+Look at the `NAMES` column. It will be something like `phi-rag-api`.
+
+**Step 2.** Open the SQLite shell:
 
 ```bash
 docker exec -it phi-rag-api sqlite3 data/chat_history.sqlite3
 ```
 
-> The working directory inside the container is `/app`, so the path is `data/chat_history.sqlite3` — **not** `app/data/`.
+> The working directory inside the container is `/app`, so the correct path is `data/chat_history.sqlite3` — **not** `app/data/chat_history.sqlite3`.
 
-### Useful queries
+**Step 3.** Run queries:
 
 ```sql
--- list all tables
+-- see all tables
 .tables
 
--- show schema
+-- see the full schema
 .schema
 
 -- list all chat sessions
 SELECT id, title, provider, model, created_at FROM sessions ORDER BY created_at DESC;
 
 -- list all messages
-SELECT * FROM messages ORDER BY created_at;
+SELECT role, content, created_at FROM messages ORDER BY created_at;
 
--- full conversation view (sessions + messages joined)
+-- full conversation view — sessions with all their messages
 SELECT s.title, s.provider, s.model, m.role, m.content, m.created_at
 FROM sessions s
 JOIN messages m ON m.session_id = s.id
 ORDER BY s.created_at, m.created_at;
 
+-- count messages per session
+SELECT s.title, COUNT(m.id) AS message_count
+FROM sessions s
+LEFT JOIN messages m ON m.session_id = s.id
+GROUP BY s.id
+ORDER BY message_count DESC;
+
 -- exit
 .quit
 ```
 
-### Copy the database file to your machine
+---
 
-If you prefer a GUI tool like [DB Browser for SQLite](https://sqlitebrowser.org):
+### Option B — GUI viewer (DB Browser for SQLite)
+
+**Step 1.** Download and install [DB Browser for SQLite](https://sqlitebrowser.org) (free, Windows/Mac/Linux).
+
+**Step 2.** Copy the database file from the container to your machine:
 
 ```bash
 docker cp phi-rag-api:/app/data/chat_history.sqlite3 ./chat_history.sqlite3
 ```
 
-Open `chat_history.sqlite3` in DB Browser to browse tables, run queries, and export data.
+**Step 3.** Open DB Browser → **Open Database** → select `chat_history.sqlite3`.
+
+**Step 4.** Use the **Browse Data** tab to view the `sessions` and `messages` tables with a spreadsheet-style interface. Use the **Execute SQL** tab for custom queries.
+
+> The copied file is a snapshot — it will not update as new chats are added. Re-run the `docker cp` command to get the latest data.
 
 ---
 
